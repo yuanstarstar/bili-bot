@@ -1,0 +1,9 @@
+# 可选：本地 QLoRA 训练（8GB 显存可跑小样本；建议 16GB+）
+# 需要 CUDA 版 torch，按 https://pytorch.org 选择 cu128/cu126 轮子
+torch>=2.9
+transformers>=5.21
+peft>=0.21
+accelerate>=1.0
+bitsandbytes>=0.50
+datasets>=4.0
+safetensors>=0.4

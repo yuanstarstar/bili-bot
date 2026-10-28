@@ -1,0 +1,5 @@
+# 可选：本地 SenseVoice 语音识别（不装也能跑，只是不转写视频音轨）
+# Windows + Python 3.10+；打包版已内置，无需安装
+sherpa-onnx>=1.13,<2
+onnxruntime>=1.20
+numpy>=1.26

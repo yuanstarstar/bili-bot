@@ -1,0 +1,46 @@
+# 运行时数据与隐私
+data/
+config.json
+*.cookie
+*.cookie.json
+.env
+.env.*
+secrets/
+personas/*.local.json
+
+# 大模型 / 运行时 / 打包产物（不进 Git）
+models/
+runtime/
+dist/
+tools/
+*.gguf
+*.onnx
+*.safetensors
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.parts
+
+# Python / 缓存
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+torchinductor_*/
+
+# 日志 / 临时文件
+*.log
+*.pid
+*.err
+*.tmp
+data/
+# 只忽略根目录的临时脚本，避免误伤包内 __init__.py
+/_*.py
+/_*.txt
+/_*.json
+/_*.log

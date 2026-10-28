@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BiliBot · 本地 B 站小号</title>
+  <link rel="stylesheet" href="/static/style.css?v=20261028l">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">B</div>
+      <div>
+        <h1>BiliBot <small>本地版 v0.1</small></h1>
+        <p class="muted">本地模型 · 人味评论 · 扫码即用</p>
+      </div>
+    </div>
+    <div class="head-status">
+      <span id="pill" class="pill idle">未启动</span>
+      <span id="head-user" class="chip">未登录</span>
+      <span id="head-model" class="chip">模型未知</span>
+      <button class="btn small ghost" id="btn-wizard">向导</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button class="active" data-tab="overview">概览</button>
+    <button data-tab="login">登录</button>
+    <button data-tab="persona">人设</button>
+    <button data-tab="voice">语音</button>
+    <button data-tab="settings">设置</button>
+    <button data-tab="drafts">草稿</button>
+    <button data-tab="logs">日志</button>
+  </nav>
+
+  <main>
+    <!-- 概览 -->
+    <section class="tab-panel active" id="tab-overview">
+      <div class="stats">
+        <div class="card stat"><div class="stat-label">今日评论</div><div class="stat-value" id="stat-comment">0</div><div class="stat-sub">首评</div></div>
+        <div class="card stat"><div class="stat-label">今日楼中楼</div><div class="stat-value" id="stat-nested">0</div><div class="stat-sub">回复评论</div></div>
+        <div class="card stat"><div class="stat-label">今日私信</div><div class="stat-value" id="stat-dm">0</div><div class="stat-sub">来信 + 主动</div></div>
+        <div class="card stat"><div class="stat-label">已看视频</div><div class="stat-value" id="stat-seen">0</div><div class="stat-sub">去重后</div></div>
+      </div>
+
+      <div class="grid two">
+        <div class="card">
+          <div class="card-head"><h2>运行控制</h2><span class="pill idle" id="run-state">idle</span></div>
+          <p class="big" id="run-current">等待启动</p>
+          <p class="muted" id="run-error"></p>
+          <p class="muted" id="run-circuit"></p>
+          <p class="muted" id="run-llm"></p>
+          <p class="muted" id="quota-line"></p>
+          <p class="muted" id="last-skip"></p>
+          <div class="btn-row">
+            <button class="btn primary" id="btn-start">开始自动运行</button>
+            <button class="btn" id="btn-pause">暂停</button>
+            <button class="btn" id="btn-resume">继续</button>
+            <button class="btn danger" id="btn-stop">停止</button>
+            <button class="btn ghost" id="btn-once">单跑一轮（dry-run）</button>
+            <button class="btn" id="btn-once-real">立即生成一条（按审核设置）</button>
+            <button class="btn ghost" id="btn-reset-quota">重置今日计数</button>
+          </div>
+          <div class="btn-row" style="margin-top:8px">
+            <input id="test-bvid" placeholder="指定 BV 号测试，如 BV1..." style="flex:1;min-width:180px">
+            <button class="btn ghost" id="btn-test-bv">测试这个 BV</button>
+          </div>
+          <pre class="result" id="once-result" hidden></pre>
+          <pre class="result" id="test-bv-result" hidden></pre>
+          <p class="hint">自动运行会按设置刷推荐、看视频、生成并发布评论；dry-run 只生成草稿不发布。审核模式开启时，“立即生成”也只进草稿箱，确认后才发布。</p>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>最近动作</h2><span class="muted">最新 8 条</span></div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead><tr><th>时间</th><th>类型</th><th>目标</th><th>结果</th></tr></thead>
+              <tbody id="actions-body"><tr><td colspan="4" class="muted">暂无</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>推荐预览</h2><button class="btn small" id="btn-feed">刷新</button></div>
+        <div id="feed-list" class="feed-list"><p class="muted">点刷新，先看看机器人会刷到什么。</p></div>
+      </div>
+    </section>
+
+    <!-- 登录 -->
+    <section class="tab-panel" id="tab-login">
+      <div class="grid two">
+        <div class="card">
+          <h2>扫码登录</h2>
+          <p class="muted">用手机 B 站 App 扫码。Cookie 只保存在本机 <code>data/bili_cookie.json</code>（DPAPI 加密）。</p>
+          <div class="btn-row"><button class="btn primary" id="btn-qr">生成登录二维码</button></div>
+          <div id="qrbox" class="qrbox"><span class="muted">二维码会显示在这里</span></div>
+          <p id="login-status" class="big">未开始</p>
+          <p id="login-info" class="muted"></p>
+        </div>
+        <div class="card">
+          <h2>当前账号</h2>
+          <div id="login-account" class="account">读取中…</div>
+          <p class="hint">小号建议：不要用主账号；不要在短时间内频繁登录/退出；私信风控最严。</p>
+          <h3>登录后检查</h3>
+          <ol class="list">
+            <li>概览页「模型状态」必须是绿色；</li>
+            <li>先「单跑一轮 dry-run」，确认能选视频、能生成评论；</li>
+            <li>再点「开始自动运行」。</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <!-- 人设 -->
+    <section class="tab-panel" id="tab-persona">
+      <div class="card">
+        <div class="card-head"><h2>机器人人设</h2><span class="chip" id="persona-name">-</span></div>
+        <p class="muted">这段 JSON 会进入系统提示词，决定语气、兴趣、长度和雷点。改完保存即生效。</p>
+        <textarea id="persona-json" class="code" spellcheck="false" rows="24"></textarea>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-persona-save">保存人设</button>
+          <button class="btn" id="btn-persona-load">重新载入</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 语音 -->
+    <section class="tab-panel" id="tab-voice">
+      <div class="card">
+        <h2>听视频 · 本地 SenseVoice</h2>
+        <p class="muted">给一个 BV 号，抓前 N 秒音轨转文字。自动刷到没字幕的视频时也会走这条路。</p>
+        <label>BV 号 <input id="voice-bvid" placeholder="BV1..."></label>
+        <label>最多秒数 <input id="voice-seconds" type="number" value="120" min="10" max="300"></label>
+        <div class="btn-row"><button class="btn" id="btn-voice-asr">开始听</button></div>
+        <pre id="voice-asr-out" class="code" style="white-space:pre-wrap;max-height:300px;overflow:auto"></pre>
+      </div>
+      <div class="card">
+        <h2>语音识别状态</h2>
+        <p class="muted" id="voice-info">检查中…</p>
+        <p class="hint">ASR 模型目录看 config.json 的 voice.asr.model_dir。此版本不包含语音合成（TTS）。</p>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section class="tab-panel" id="tab-settings">
+      <div class="grid two">
+        <div class="card">
+          <h2>模型（OpenAI 兼容）</h2>
+          <label>接口地址 <input id="llm-base" placeholder="http://127.0.0.1:8080/v1"></label>
+          <label>模型名 <input id="llm-model" placeholder="qwen3.5-4b"></label>
+          <label>API Key（本地可空） <input id="llm-key" type="password" placeholder="sk-..."></label>
+          <div class="btn-row">
+            <button class="btn" id="btn-model-test">测试连接</button>
+            <span class="muted" id="model-test-result"></span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>节奏</h2>
+          <div class="row3">
+            <label>评论/日（0=关闭） <input id="q-comment" type="number" min="0" max="50"></label>
+            <label>楼中楼/日（0=关闭） <input id="q-nested" type="number" min="0" max="80"></label>
+            <label>私信/日（0=关闭） <input id="q-dm" type="number" min="0" max="30"></label>
+          </div>
+          <div class="row3">
+            <label>最短间隔(分) <input id="q-min" type="number" min="1" max="240"></label>
+            <label>最长间隔(分) <input id="q-max" type="number" min="1" max="360"></label>
+            <label>评论概率 <input id="q-prob" type="number" min="0" max="1" step="0.05"></label>
+          </div>
+          <label>活跃时段（逗号分隔） <input id="q-hours" placeholder="09:00-12:00,14:00-23:30"></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>发布审核</h2>
+        <label>评论发布方式
+          <select id="q-approval">
+            <option value="auto">自动发布：生成后直接发到 B 站</option>
+            <option value="review">先审后发：进草稿箱，确认后才发布</option>
+          </select>
+        </label>
+        <p class="hint">审核模式覆盖首评和楼中楼；草稿箱里可逐条「发布」或「忽略」。私信回复不受影响。</p>
+      </div>
+
+      <div class="grid two">
+        <div class="card">
+          <h2>@主人</h2>
+          <label>模式
+            <select id="q-at-mode">
+              <option value="off">关闭：不 @</option>
+              <option value="taste">看口味：内容匹配才 @</option>
+              <option value="always">总是 @</option>
+            </select>
+          </label>
+          <div class="row2">
+            <label>主人 UID <input id="q-at-uid" type="number" placeholder="123456"></label>
+            <label>主人昵称 <input id="q-at-name" placeholder="显示名"></label>
+          </div>
+          <label>口味关键词（逗号分隔） <input id="q-at-taste" placeholder="科技,动画,数码"></label>
+          <label>每天最多 @ 次数（0=不限） <input id="q-at-daily" type="number" min="0" step="1" value="8"></label>
+          <p class="hint">@ 会拼在评论末尾并带 at_uid/at_name；评论本身 6–30 字，@ 后缀不占这 30 字。</p>
+        </div>
+        <div class="card">
+          <h2>私信</h2>
+          <label>策略
+            <select id="q-dm-mode">
+              <option value="off">关闭（不主动、不回复）</option>
+              <option value="reply">只回来信</option>
+              <option value="whitelist">回信 + 白名单主动分享</option>
+            </select>
+          </label>
+          <label>白名单 UID（逗号分隔） <input id="q-dm-whitelist" placeholder="111,222"></label>
+          <p class="hint">主动私信只发白名单，默认每天 1 条；来信回复也受每日私信配额限制。</p>
+        </div>
+      </div>
+
+      <div class="btn-row" style="margin: 2px 0 16px">
+        <button class="btn primary" id="btn-save-quick">保存常用设置</button>
+        <span class="muted">模型、节奏、@主人、私信白名单会一起保存。</span>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>高级配置</h2><div class="btn-row">
+          <button class="btn small" id="btn-config-load">重新载入</button>
+          <button class="btn small primary" id="btn-config-save">保存 JSON</button>
+        </div></div>
+        <p class="muted">直接改完整 config.json。保存后立即生效；端口、Cookie 路径等部分项需重启。</p>
+        <textarea id="config-json" class="code" spellcheck="false" rows="20"></textarea>
+      </div>
+
+      <div class="card">
+        <h2>缓存</h2>
+        <p class="muted" id="cache-info">统计中…</p>
+        <div class="btn-row">
+          <button class="btn" id="btn-cache">清理缓存</button>
+          <button class="btn ghost" id="btn-cache-logs">清理轮转日志</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 草稿 -->
+    <section class="tab-panel" id="tab-drafts">
+      <div class="card">
+        <div class="card-head"><h2>待审草稿</h2><div class="btn-row">
+          <button class="btn small" id="btn-drafts">刷新</button>
+        </div></div>
+        <p class="muted">审核模式下，自动运行生成的首评/楼中楼会停在这里；dry-run 也会生成草稿。确认后再点「发布」。</p>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>时间</th><th>类型</th><th>视频</th><th>内容</th><th>操作</th></tr></thead>
+            <tbody id="drafts-body"><tr><td colspan="5" class="muted">暂无草稿</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 日志 -->
+    <section class="tab-panel" id="tab-logs">
+      <div class="card">
+        <div class="card-head"><h2>运行日志</h2><button class="btn small" id="btn-logs">刷新</button></div>
+        <pre id="logbox" class="logbox">加载中…</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>BiliBot 本地版 · 仅绑定 127.0.0.1 · 账号风险自负</span>
+    <span id="footer-time"></span>
+  </footer>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<div id="wizard" class="wizard-mask" hidden>
+  <div class="wizard">
+    <div class="wizard-head">
+      <h2 id="wz-title">欢迎使用 BiliBot</h2>
+      <button class="btn small ghost" id="wz-close">关闭</button>
+    </div>
+    <div class="wizard-body">
+      <div class="wz-step" data-wz="1">
+        <h3>1 / 5 · 检查环境</h3>
+        <p class="muted">模型、登录、语音三项都正常后再开始。模型没起时，关掉向导双击 <code>start.bat</code>。</p>
+        <div class="wz-checks" id="wz-checks">检查中…</div>
+      </div>
+      <div class="wz-step" data-wz="2" hidden>
+        <h3>2 / 5 · 扫码登录</h3>
+        <p class="muted">用小号扫码。登录态只保存在本机 <code>data/bili_cookie.json</code>，不会上传。</p>
+        <p class="big" id="wz-login-state">未登录</p>
+        <button class="btn primary" id="wz-go-login">去登录页扫码</button>
+        <p class="hint">扫码成功后回到向导，点「下一步」。</p>
+      </div>
+      <div class="wz-step" data-wz="3" hidden>
+        <h3>3 / 5 · 人设</h3>
+        <label>昵称 <input id="wz-name" placeholder="鱼皮汽水"></label>
+        <label>身份/简介 <input id="wz-identity" placeholder="大三计算机学生，晚上泡在 B 站"></label>
+        <label>兴趣（逗号分隔） <input id="wz-interests" placeholder="动画杂谈,游戏实况,科技数码,音乐现场"></label>
+        <p class="hint">更细的人设可以去「人设」页直接改 JSON。</p>
+      </div>
+      <div class="wz-step" data-wz="4" hidden>
+        <h3>4 / 5 · 主人与节奏</h3>
+        <div class="row2">
+          <label>主人 UID <input id="wz-at-uid" type="number" placeholder="123456"></label>
+          <label>主人昵称 <input id="wz-at-name" placeholder="显示名"></label>
+        </div>
+        <label>主人喜欢的内容（逗号分隔） <input id="wz-taste" placeholder="科技,动画,数码"></label>
+        <label>节奏
+          <select id="wz-preset">
+            <option value="safe">保守：每天 3 评 / 5 楼 / 2 私信</option>
+            <option value="normal" selected>标准：8 评 / 15 楼 / 5 私信</option>
+            <option value="active">活跃：15 评 / 25 楼 / 8 私信</option>
+          </select>
+        </label>
+        <p class="hint">@主人默认「看口味」：内容匹配才 @，每天最多 1 次。</p>
+      </div>
+      <div class="wz-step" data-wz="5" hidden>
+        <h3>5 / 5 · 完成</h3>
+        <p class="muted">建议第一天先点「单跑一轮 dry-run」看草稿，再开始自动运行。</p>
+        <label class="check"><input type="checkbox" id="wz-autostart"> 保存后立即开始自动运行</label>
+        <div class="wz-summary" id="wz-summary"></div>
+      </div>
+    </div>
+    <div class="wizard-foot">
+      <span class="muted" id="wz-progress">1 / 5</span>
+      <div class="btn-row">
+        <button class="btn" id="wz-prev">上一步</button>
+        <button class="btn primary" id="wz-next">下一步</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/static/qrcode.min.js"></script>
+<script src="/static/app.js?v=20261028l"></script>
+</body>
+</html>
+

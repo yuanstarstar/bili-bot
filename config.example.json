@@ -1,0 +1,116 @@
+{
+  "app": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "open_browser": true,
+    "log_level": "INFO"
+  },
+  "bili": {
+    "cookie_file": "",
+    "allow_write": true,
+    "timeout_s": 15,
+    "user_agent": "",
+    "ffmpeg": ""
+  },
+  "llm": {
+    "base_url": "http://127.0.0.1:8081/v1",
+    "api_key": "sk-local",
+    "model": "qwen3.5-4b",
+    "timeout_s": 180,
+    "temperature": 0.9,
+    "max_tokens": 320,
+    "json_mode": false,
+    "disable_thinking": true,
+    "adapter": ""
+  },
+  "bot": {
+    "enabled": false,
+    "auto_start": false,
+    "approval_mode": "auto",
+    "active_hours": [
+      "09:00-12:00",
+      "14:00-23:30"
+    ],
+    "comment_per_day": 8,
+    "nested_per_day": 15,
+    "dm_per_day": 5,
+    "min_interval_min": 20,
+    "max_interval_min": 60,
+    "cycle_min_s": 120,
+    "cycle_max_s": 420,
+    "browse_per_comment": [
+      3,
+      8
+    ],
+    "comment_probability": 0.55,
+    "dwell_ratio": [
+      0.3,
+      0.8
+    ],
+    "dwell_cap_s": 480,
+    "read_comments_s": [
+      10,
+      60
+    ],
+    "max_nested_per_thread": 3,
+    "search_interests": [],
+    "use_tags": true,
+    "use_subtitle": true,
+    "use_danmaku": true,
+    "use_recommend": true,
+    "use_search": false,
+    "like_video": false,
+    "simulate_dwell": true,
+    "dry_run_sleep": false,
+    "at_master": {
+      "mode": "taste",
+      "uid": 0,
+      "name": "",
+      "daily_limit": 8,
+      "taste": [],
+      "append_text": true
+    },
+    "dm": {
+      "reply_incoming": true,
+      "proactive": "whitelist",
+      "whitelist": [],
+      "proactive_daily": 1
+    }
+  },
+  "risk": {
+    "daily_total_actions": 40,
+    "cooldown_on_risk_h": 6,
+    "max_consecutive_failures": 3,
+    "risk_codes": [
+      -352,
+      -412,
+      -509,
+      -799,
+      86038
+    ]
+  },
+  "persona_file": "personas/default.json",
+  "voice": {
+    "enabled": true,
+    "ffmpeg": "",
+    "asr": {
+      "enabled": true,
+      "model_dir": "~/.dsh/speech-to-text/sensevoice/models",
+      "threads": 4,
+      "language": "zh",
+      "use_itn": true,
+      "for_video": true,
+      "max_seconds": 120,
+      "in_dry_run": false
+    }
+  },
+  "train": {
+    "exclude_ranges": [
+      [
+        "2026-10-01",
+        "2026-11-01"
+      ]
+    ],
+    "target_per_video": 50
+  }
+}
